@@ -2,17 +2,29 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { initializeDatabase } = require('./db/schema');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Initialize DB
 initializeDatabase();
 
+// Seed DB automatically in production if empty
+if (IS_PRODUCTION) {
+  const { db } = require('./db/schema');
+  const sectorCount = db.prepare('SELECT COUNT(*) as c FROM sectors').get().c;
+  if (sectorCount === 0) {
+    console.log('Seeding database for first run...');
+    require('./db/seed');
+  }
+}
+
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: IS_PRODUCTION ? '*' : (process.env.FRONTEND_URL || 'http://localhost:3000'),
   credentials: true
 }));
 app.use(express.json());
@@ -21,7 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Routes
+// API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/sectors', require('./routes/sectors'));
 app.use('/api/entities', require('./routes/entities').router);
@@ -43,6 +55,16 @@ app.get('/api/stats', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Serve React frontend in production
+const frontendBuild = path.join(__dirname, '../../frontend/dist');
+if (IS_PRODUCTION && fs.existsSync(frontendBuild)) {
+  app.use(express.static(frontendBuild));
+  // All non-API routes serve the React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendBuild, 'index.html'));
+  });
+}
 
 // Error handler
 app.use((err, req, res, next) => {

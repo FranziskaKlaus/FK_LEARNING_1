@@ -2,14 +2,17 @@
   "name": "rateit-review-platform",
   "version": "1.0.0",
   "description": "Full-stack review platform for rating doctors, hospitals, companies, teachers and more",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "install:backend": "cd backend && npm install",
     "install:frontend": "cd frontend && npm install",
     "install:all": "npm run install:backend && npm run install:frontend",
-    "seed": "cd backend && npm run seed",
+    "build": "cd frontend && npm install && npm run build",
+    "seed": "cd backend && node src/db/seed.js",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "start:backend": "cd backend && npm start",
-    "start": "npm run start:backend"
+    "start": "NODE_ENV=production node backend/src/server.js"
   }
 }
