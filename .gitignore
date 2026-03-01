@@ -1,3 +1,16 @@
+# Node.js / Web App
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+backend/data/
+backend/uploads/*
+!backend/uploads/.gitkeep
+.env
+*.env.local
+dist/
+frontend/dist/
+.DS_Store
+
 # Xcode
 #
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
