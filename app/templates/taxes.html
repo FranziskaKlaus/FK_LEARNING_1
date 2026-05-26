@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Tax overview{% endblock %}
+{% block content %}
+<hgroup>
+  <h2>Tax overview — {{ year }}</h2>
+  <p>{{ disclaimer }}</p>
+</hgroup>
+
+<form method="get" action="/taxes">
+  <label for="year">Tax year
+    <select id="year" name="year" onchange="this.form.submit()">
+      {% for y in years %}<option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+
+<h3>Cedolare secca ({{ (cedolare.rate * 100) | round }}%)</h3>
+<div class="cards">
+  <div class="card"><p class="label">Taxable rental income</p><h3>{{ cedolare.total_taxable | eur }}</h3></div>
+  <div class="card"><p class="label">Total tax due</p><h3>{{ cedolare.total_tax_due | eur }}</h3></div>
+  <div class="card good"><p class="label">Already paid (withheld)</p><h3>{{ cedolare.tax_paid_at_source | eur }}</h3></div>
+  <div class="card warn"><p class="label">Still owed by you</p><h3>{{ cedolare.tax_still_owed | eur }}</h3></div>
+</div>
+
+<table>
+  <thead><tr><th>Channel</th><th class="right">Taxable</th><th class="right">Tax due</th><th class="right">Withheld</th><th class="right">Owed</th></tr></thead>
+  <tbody>
+    {% for ch, b in cedolare.by_channel.items() %}
+    <tr><td>{{ ch }}</td><td class="right">{{ b.taxable | eur }}</td><td class="right">{{ b.tax_due | eur }}</td><td class="right">{{ b.paid | eur }}</td><td class="right">{{ b.owed | eur }}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">No income for this year.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>Regime comparison (illustrative)</h3>
+<p class="muted">Under cedolare secca, running costs are NOT deductible against rental income — it's a flat tax on gross rent. Ordinary IRPEF lets you deduct some costs but uses progressive rates. This is a rough comparison; confirm with your commercialista.</p>
+<table>
+  <tbody>
+    <tr><td>Cedolare secca (flat)</td><td class="right">{{ comparison.cedolare_tax | eur }}</td></tr>
+    <tr><td>Ordinary IRPEF (estimated)</td><td class="right">{{ comparison.ordinary_tax_estimate | eur }}</td></tr>
+    <tr><td><strong>More efficient</strong></td><td class="right"><strong>{{ comparison.recommended }}</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>Local taxes &amp; reminders</h3>
+<div class="cards">
+  <div class="card"><p class="label">IMU recorded</p><h3>{{ imu | eur }}</h3></div>
+  <div class="card"><p class="label">TARI recorded</p><h3>{{ tari | eur }}</h3></div>
+</div>
+<p class="muted">IMU is usually paid in two instalments: <strong>acconto by 16 June</strong> and <strong>saldo by 16 December</strong>. TARI dates are set by your comune.</p>
+
+<h3>Renovation bonus deductions</h3>
+<div class="card good" style="max-width:320px">
+  <p class="label">Claimable in {{ year }}</p>
+  <h3>{{ bonus_claimable | eur }}</h3>
+</div>
+
+{% if cash_investments %}
+<div class="banner warn">
+  ⚠️ {{ cash_investments|length }} investment(s) were paid in cash. Renovation/energy bonuses require a traceable payment (bank transfer or card) to qualify.
+</div>
+{% endif %}
+
+{% for inv, schedule in schedules %}
+<details class="scan">
+  <summary>{{ inv.description or 'Investment' }} — {{ bonus_labels[inv.bonus_type] }} ({{ inv.total_amount | eur }})</summary>
+  <table>
+    <thead><tr><th>Year</th><th class="right">Deductible</th></tr></thead>
+    <tbody>
+      {% for yr, amount in schedule %}
+      <tr {% if yr==year %}style="font-weight:700"{% endif %}><td>{{ yr }}</td><td class="right">{{ amount | eur }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% else %}
+<p class="muted">No investments recorded — add the sauna and other works under Investments.</p>
+{% endfor %}
+{% endblock %}

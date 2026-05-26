@@ -1,0 +1,22 @@
+.nav-links { gap: 0.25rem; flex-wrap: wrap; }
+.nav-links a.active { font-weight: 700; text-decoration: underline; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.card { border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 1rem; }
+.card h3 { margin: 0; font-size: 1.6rem; }
+.card .label { color: var(--pico-muted-color); font-size: 0.85rem; margin: 0; }
+.card.good h3 { color: #2e7d32; }
+.card.warn h3 { color: #c62828; }
+
+.pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 1rem; font-size: 0.75rem; background: var(--pico-secondary-background); }
+.pill.review { background: #ffe0b2; color: #7a4f01; }
+.pill.withheld { background: #c8e6c9; color: #1b5e20; }
+.pill.owed { background: #ffcdd2; color: #b71c1c; }
+
+table { font-size: 0.9rem; }
+.right { text-align: right; }
+.muted { color: var(--pico-muted-color); }
+details.scan summary { cursor: pointer; }
+.banner { padding: 0.75rem 1rem; border-radius: var(--pico-border-radius); margin-bottom: 1rem; }
+.banner.info { background: #e3f2fd; }
+.banner.warn { background: #fff3e0; }

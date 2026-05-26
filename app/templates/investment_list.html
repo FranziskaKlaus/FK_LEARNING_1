@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Investments{% endblock %}
+{% block content %}
+<h2>Investments &amp; renovations</h2>
+<p class="muted">Capital works (e.g. a new sauna) that may qualify for a multi-year Italian tax bonus. The deduction is spread over 10 equal yearly instalments. Use a <strong>traceable payment</strong> (bank transfer/card) — cash payments don't qualify.</p>
+
+<article>
+  <h4>{% if edit %}Edit investment{% else %}Add investment{% endif %}</h4>
+  <form method="post" action="{% if edit %}/investments/{{ edit.id }}{% else %}/investments{% endif %}">
+    <div class="grid">
+      <label>Description <input type="text" name="description" placeholder="e.g. New sauna" value="{{ edit.description if edit else '' }}"></label>
+      <label>Bonus type
+        <select name="bonus_type">
+          {% for b in BonusType %}
+          <option value="{{ b.value }}" {% if edit and edit.bonus_type==b %}selected{% endif %}>{{ bonus_labels[b] }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="grid">
+      <label>Total amount (€) <input type="number" step="0.01" name="total_amount" value="{{ edit.total_amount if edit else '' }}"></label>
+      <label>Deduction rate (0–1)
+        <input type="number" step="0.01" name="deduction_rate" value="{{ edit.deduction_rate if edit else default_rate }}">
+        <small>Default {{ (default_rate * 100) | round }}% for this property.</small>
+      </label>
+      <label>Start year <input type="number" name="start_year" value="{{ edit.start_year if edit else this_year }}"></label>
+    </div>
+    <label>Payment method
+      <select name="payment_method">
+        {% for p in PaymentMethod %}
+        <option value="{{ p.value }}" {% if edit and edit.payment_method==p %}selected{% endif %}>{{ payment_labels[p] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Notes <input type="text" name="notes" value="{{ edit.notes if edit else '' }}"></label>
+    <button type="submit">{% if edit %}Save{% else %}Add investment{% endif %}</button>
+    {% if edit %}<a href="/investments" role="button" class="secondary">Cancel</a>{% endif %}
+  </form>
+</article>
+
+{% for inv in items %}
+<article>
+  <header>
+    <strong>{{ inv.description or 'Investment' }}</strong> — {{ bonus_labels[inv.bonus_type] }}
+    {% if inv.payment_method == PaymentMethod.cash and inv.bonus_type != BonusType.none %}
+    <span class="pill owed">cash — may not qualify</span>
+    {% endif %}
+    <a href="/investments/{{ inv.id }}/edit" style="float:right">edit</a>
+  </header>
+  <p>
+    Spend {{ inv.total_amount | eur }} · rate {{ (inv.deduction_rate * 100) | round }}% · from {{ inv.start_year }}
+  </p>
+  <details class="scan">
+    <summary>10-year deduction schedule</summary>
+    <table>
+      <thead><tr><th>Year</th><th class="right">Deductible</th></tr></thead>
+      <tbody>
+        {% for yr, amount in schedules[inv.id] %}
+        <tr><td>{{ yr }}</td><td class="right">{{ amount | eur }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  <form method="post" action="/investments/{{ inv.id }}/delete" onsubmit="return confirm('Delete this investment?')">
+    <button type="submit" class="outline secondary" style="padding:0.1rem 0.6rem">Delete</button>
+  </form>
+</article>
+{% else %}
+<p class="muted">No investments recorded yet.</p>
+{% endfor %}
+{% endblock %}

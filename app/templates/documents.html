@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Invoices{% endblock %}
+{% block content %}
+<h2>Scan an invoice</h2>
+
+{% if scanning_enabled %}
+<div class="banner info">📸 Upload or photograph an invoice — Claude reads the vendor, date, amount and VAT, then creates a draft expense for you to confirm.</div>
+{% else %}
+<div class="banner warn">AI scanning is off (no <code>ANTHROPIC_API_KEY</code> set). You can still upload invoices and fill the details in manually.</div>
+{% endif %}
+
+<article>
+  <form method="post" action="/documents/upload" enctype="multipart/form-data">
+    <label>Invoice file (photo or PDF)
+      <input type="file" name="file" accept="image/*,application/pdf" capture="environment" required>
+    </label>
+    <button type="submit">Upload &amp; scan</button>
+  </form>
+</article>
+
+<h3>Uploaded invoices</h3>
+<table>
+  <thead>
+    <tr><th>File</th><th>Status</th><th>Vendor</th><th>Date</th><th class="right">Total</th><th>Confidence</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for d in items %}
+    <tr>
+      <td><a href="/documents/{{ d.id }}/file" target="_blank">{{ d.filename }}</a></td>
+      <td><span class="pill {% if d.status.value=='needs_review' %}review{% endif %}">{{ d.status.value }}</span></td>
+      <td>{{ d.parsed_vendor or '—' }}</td>
+      <td>{{ d.parsed_date | fdate }}</td>
+      <td class="right">{{ d.parsed_total | eur }}</td>
+      <td>{% if d.confidence %}{{ (d.confidence * 100) | round }}%{% else %}—{% endif %}</td>
+      <td>
+        <form method="post" action="/documents/{{ d.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this invoice and its file?')">
+          <button type="submit" class="outline secondary" style="padding:0.1rem 0.4rem">✕</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">No invoices uploaded yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

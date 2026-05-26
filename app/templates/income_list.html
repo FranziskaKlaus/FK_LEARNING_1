@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Income{% endblock %}
+{% block content %}
+<h2>Income</h2>
+<p class="muted">Airbnb withholds the cedolare tax for you; direct/website bookings paid to your bank do not, so you owe that tax yourself.</p>
+
+<article>
+  <h4>{% if edit %}Edit booking{% else %}Add income{% endif %}</h4>
+  <form method="post" action="{% if edit %}/income/{{ edit.id }}{% else %}/income{% endif %}">
+    <div class="grid">
+      <label>Channel
+        <select name="channel" id="channel" onchange="syncWithheld()">
+          {% for ch in IncomeChannel %}
+          <option value="{{ ch.value }}" {% if edit and edit.channel==ch %}selected{% endif %}>{{ channel_labels[ch] }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Guest
+        <input type="text" name="guest_name" value="{{ edit.guest_name if edit else '' }}">
+      </label>
+    </div>
+    <div class="grid">
+      <label>Check-in <input type="date" name="check_in" value="{{ edit.check_in.isoformat() if edit and edit.check_in else '' }}"></label>
+      <label>Check-out <input type="date" name="check_out" value="{{ edit.check_out.isoformat() if edit and edit.check_out else '' }}"></label>
+      <label>Nights <input type="number" name="nights" value="{{ edit.nights if edit else '' }}"></label>
+    </div>
+    <div class="grid">
+      <label>Gross rent (€) <input type="number" step="0.01" name="gross_rent" value="{{ edit.gross_rent if edit else '' }}"></label>
+      <label>Cleaning fee (€) <input type="number" step="0.01" name="cleaning_fee" value="{{ edit.cleaning_fee if edit else '' }}"></label>
+      <label>Platform commission (€) <input type="number" step="0.01" name="platform_commission" value="{{ edit.platform_commission if edit else '' }}"></label>
+    </div>
+    <div class="grid">
+      <label>Tax withheld at source (€) <input type="number" step="0.01" name="amount_withheld" value="{{ edit.amount_withheld if edit else '' }}"></label>
+      <label>Net received (€) <input type="number" step="0.01" name="net_received" value="{{ edit.net_received if edit else '' }}"></label>
+      <label>Payout date <input type="date" name="payout_date" value="{{ edit.payout_date.isoformat() if edit and edit.payout_date else '' }}"></label>
+    </div>
+    <label>
+      <input type="checkbox" name="tax_withheld_at_source" id="withheld" {% if edit and edit.tax_withheld_at_source %}checked{% endif %}>
+      Tax already withheld at source (Airbnb)
+    </label>
+    <label>Notes <input type="text" name="notes" value="{{ edit.notes if edit else '' }}"></label>
+    <button type="submit">{% if edit %}Save{% else %}Add income{% endif %}</button>
+    {% if edit %}<a href="/income" role="button" class="secondary">Cancel</a>{% endif %}
+  </form>
+</article>
+
+<table>
+  <thead>
+    <tr><th>Dates</th><th>Channel</th><th>Guest</th><th class="right">Gross</th><th class="right">Withheld</th><th>Tax</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for i in items %}
+    <tr>
+      <td>{{ i.check_in | fdate }}{% if i.check_out %} → {{ i.check_out | fdate }}{% endif %}</td>
+      <td>{{ channel_labels[i.channel] }}</td>
+      <td>{{ i.guest_name or '—' }}</td>
+      <td class="right">{{ (i.gross_rent + i.cleaning_fee) | eur }}</td>
+      <td class="right">{{ i.amount_withheld | eur }}</td>
+      <td>{% if i.tax_withheld_at_source %}<span class="pill withheld">withheld</span>{% else %}<span class="pill owed">you owe</span>{% endif %}</td>
+      <td>
+        <a href="/income/{{ i.id }}/edit">edit</a>
+        <form method="post" action="/income/{{ i.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this booking?')">
+          <button type="submit" class="outline secondary" style="padding:0.1rem 0.4rem">✕</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">No income recorded yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+function syncWithheld() {
+  var ch = document.getElementById('channel').value;
+  document.getElementById('withheld').checked = (ch === 'airbnb');
+}
+{% if not edit %}// new entries: default the checkbox to match the channel
+document.addEventListener('DOMContentLoaded', syncWithheld);{% endif %}
+</script>
+{% endblock %}

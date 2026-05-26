@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h2>Property settings</h2>
+<article>
+  <form method="post" action="/property">
+    <label>Name <input type="text" name="name" value="{{ property.name }}" required></label>
+    <label>Address <input type="text" name="address" value="{{ property.address }}"></label>
+    <label>Comune <input type="text" name="comune" value="{{ property.comune }}"></label>
+    <label>
+      <input type="checkbox" name="is_second_home" {% if property.is_second_home %}checked{% endif %}>
+      Second home (36% renovation rate; if unticked, treated as primary residence at 50%)
+    </label>
+    <label>Purchase date <input type="date" name="purchase_date" value="{{ property.purchase_date.isoformat() if property.purchase_date else '' }}"></label>
+    <label>Cadastral info <input type="text" name="cadastral_info" value="{{ property.cadastral_info }}"></label>
+    <button type="submit">Save</button>
+  </form>
+</article>
+{% endblock %}

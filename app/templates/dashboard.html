@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<hgroup>
+  <h2>{{ property.name }}</h2>
+  <p>Financial year {{ year }}</p>
+</hgroup>
+
+<form method="get" action="/">
+  <label for="year">Tax year
+    <select id="year" name="year" onchange="this.form.submit()">
+      {% for y in years %}
+      <option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+
+{% if review_count %}
+<div class="banner warn">
+  ⚠️ {{ review_count }} item(s) need review or a category.
+  <a href="/expenses/review">Review now →</a>
+</div>
+{% endif %}
+
+<div class="cards">
+  <div class="card good">
+    <p class="label">Income</p>
+    <h3>{{ stmt.total_income | eur }}</h3>
+  </div>
+  <div class="card">
+    <p class="label">Expenses</p>
+    <h3>{{ stmt.total_expenses | eur }}</h3>
+  </div>
+  <div class="card {% if stmt.net_cash_flow >= 0 %}good{% else %}warn{% endif %}">
+    <p class="label">Net cash flow</p>
+    <h3>{{ stmt.net_cash_flow | eur }}</h3>
+  </div>
+  <div class="card warn">
+    <p class="label">Cedolare still owed</p>
+    <h3>{{ cedolare.tax_still_owed | eur }}</h3>
+  </div>
+  <div class="card good">
+    <p class="label">Bonus deduction this year</p>
+    <h3>{{ bonus_claimable | eur }}</h3>
+  </div>
+</div>
+
+<div class="grid">
+  <article>
+    <h4>Income by channel</h4>
+    <table>
+      <tbody>
+        {% for ch, amount in stmt.income_by_channel.items() %}
+        <tr><td>{{ ch }}</td><td class="right">{{ amount | eur }}</td></tr>
+        {% else %}
+        <tr><td class="muted">No income recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+  <article>
+    <h4>Expenses by category</h4>
+    <table>
+      <tbody>
+        {% for cat, amount in stmt.expenses_by_category.items() %}
+        <tr><td>{{ cat }}</td><td class="right">{{ amount | eur }}</td></tr>
+        {% else %}
+        <tr><td class="muted">No expenses recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+</div>
+
+<p><a href="/documents" role="button">📸 Scan an invoice</a>
+   <a href="/taxes" role="button" class="secondary">View tax overview</a></p>
+{% endblock %}
