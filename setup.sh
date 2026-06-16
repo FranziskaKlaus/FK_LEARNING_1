@@ -5,11 +5,21 @@ set -e
 
 echo "=== Social Media Analyzer Bot Setup ==="
 
-# Install Python deps
-echo "Installing dependencies..."
-pip3 install -r requirements.txt -q
+BOT_DIR=$(pwd)
+BOT_USER=$(whoami)
+VENV="$BOT_DIR/venv"
 
-# Create .env if it doesn't exist
+# Create virtual environment if needed
+if [ ! -d "$VENV" ]; then
+    echo "Creating Python virtual environment..."
+    python3 -m venv "$VENV"
+fi
+
+# Install Python deps inside venv
+echo "Installing dependencies..."
+"$VENV/bin/pip" install -r requirements.txt -q
+
+# Check .env exists
 if [ ! -f .env ]; then
     cp .env.example .env
     echo ""
@@ -21,9 +31,6 @@ if [ ! -f .env ]; then
 fi
 
 # Install systemd service
-BOT_DIR=$(pwd)
-BOT_USER=$(whoami)
-
 cat > /tmp/analyzesome.service <<EOF
 [Unit]
 Description=AnalyzeSoMe Telegram Bot
@@ -34,7 +41,7 @@ Type=simple
 User=$BOT_USER
 WorkingDirectory=$BOT_DIR
 EnvironmentFile=$BOT_DIR/.env
-ExecStart=/usr/bin/python3 $BOT_DIR/bot.py
+ExecStart=$VENV/bin/python $BOT_DIR/bot.py
 Restart=always
 RestartSec=10
 
@@ -42,15 +49,15 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-sudo mv /tmp/analyzesome.service /etc/systemd/system/analyzesome.service
-sudo systemctl daemon-reload
-sudo systemctl enable analyzesome
-sudo systemctl start analyzesome
+mv /tmp/analyzesome.service /etc/systemd/system/analyzesome.service
+systemctl daemon-reload
+systemctl enable analyzesome
+systemctl start analyzesome
 
 echo ""
 echo "=== Done! Bot is running ==="
 echo ""
 echo "Useful commands:"
-echo "  sudo systemctl status analyzesome   # check status"
-echo "  sudo journalctl -u analyzesome -f   # live logs"
-echo "  sudo systemctl restart analyzesome  # restart bot"
+echo "  systemctl status analyzesome   # check status"
+echo "  journalctl -u analyzesome -f   # live logs"
+echo "  systemctl restart analyzesome  # restart bot"
