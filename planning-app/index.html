@@ -8,6 +8,14 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // Force the classic JSX runtime so the in-browser compiler emits
+  // React.createElement(...) instead of injecting an `import` from
+  // "react/jsx-runtime" (which fails when run as a classic script).
+  Babel.registerPreset('react-classic', {
+    presets: [[Babel.availablePresets.react, { runtime: 'classic' }]]
+  });
+</script>
 <style>
   :root{
     --bg:#F4F5F8; --card:#FFFFFF; --ink:#1B1D23; --muted:#6B7280; --line:#E6E8EE;
@@ -127,7 +135,7 @@
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react">
+<script type="text/babel" data-presets="react-classic">
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 /* ============================================================ CONFIG */
