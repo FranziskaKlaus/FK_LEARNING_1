@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>✦ Planning</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#F4F5F8; --card:#FFFFFF; --ink:#1B1D23; --muted:#6B7280; --line:#E6E8EE;
+    --accent:#7C3AED; --accent-soft:#F0EBFF; --green:#059669; --amber:#D97706;
+    --red:#DC2626; --blue:#2563EB;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  input,textarea,select{font-family:inherit}
+  .wrap{display:flex;min-height:100vh}
+  /* Sidebar */
+  .side{width:230px;background:var(--card);border-right:1px solid var(--line);
+    padding:18px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+  .brand{font-weight:800;font-size:20px;letter-spacing:-.02em;padding:6px 10px 16px;color:var(--accent)}
+  .nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+    color:var(--muted);font-weight:600;font-size:14.5px;width:100%;text-align:left}
+  .nav:hover{background:var(--bg)}
+  .nav.active{background:var(--accent-soft);color:var(--accent)}
+  .nav .ico{font-size:16px;width:20px;text-align:center}
+  .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+  .saveind{display:flex;align-items:center;gap:7px;font-size:12px;padding:8px 10px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+  .dot.saving{background:var(--amber)}
+  .dot.err{background:var(--red)}
+  .linkbtn{color:var(--muted);text-align:left;padding:8px 10px;border-radius:8px;font-size:12.5px}
+  .linkbtn:hover{background:var(--bg);color:var(--ink)}
+  /* Main */
+  .main{flex:1;min-width:0;padding:28px 32px 80px;max-width:920px}
+  h1.page{font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;box-shadow:var(--shadow);margin-bottom:14px}
+  .briefing{background:linear-gradient(180deg,#FBFAFF,#FFFFFF);border:1px solid #ECE7FB}
+  .briefing h2{margin:0 0 6px;font-size:15px;color:var(--accent);letter-spacing:.01em}
+  .briefing p{margin:0;font-size:15px;line-height:1.5}
+  .alert{background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412}
+  .section-h{display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px}
+  .section-h h3{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  /* Task row */
+  .task{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .task:last-child{border-bottom:none}
+  .chk{appearance:none;width:20px;height:20px;border:2px solid #CBD2E0;border-radius:6px;margin-top:1px;flex:none;position:relative;transition:.12s}
+  .chk:checked{background:var(--accent);border-color:var(--accent)}
+  .chk:checked::after{content:"✓";color:#fff;font-size:13px;position:absolute;top:-1px;left:3px}
+  .t-body{flex:1;min-width:0}
+  .t-title{font-size:15px;line-height:1.35}
+  .t-title.done{color:var(--muted);text-decoration:line-through}
+  .t-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px;align-items:center}
+  .pill{font-size:11.5px;padding:2px 9px;border-radius:999px;font-weight:600;white-space:nowrap}
+  .pill.ctx{background:var(--bg);color:var(--muted)}
+  .pill.high{background:#FEE2E2;color:#B91C1C}
+  .pill.medium{background:#FEF3C7;color:#92400E}
+  .pill.low{background:#E0F2FE;color:#075985}
+  .pill.over{background:#FEE2E2;color:#B91C1C}
+  .pill.due{background:#DCFCE7;color:#166534}
+  .t-actions{display:flex;gap:6px;opacity:0;transition:.12s}
+  .task:hover .t-actions{opacity:1}
+  .icobtn{font-size:13px;color:var(--muted);padding:3px 7px;border-radius:7px}
+  .icobtn:hover{background:var(--bg);color:var(--ink)}
+  .subs{margin:8px 0 2px;padding-left:2px;display:flex;flex-direction:column;gap:6px}
+  .sub{display:flex;gap:9px;align-items:center;font-size:13px;color:var(--muted)}
+  .sub .chk{width:16px;height:16px}
+  .sub .chk:checked::after{font-size:10px;left:2px;top:0}
+  /* Goals */
+  .goalgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  .goalcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;
+    box-shadow:var(--shadow);cursor:pointer;transition:.12s}
+  .goalcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(16,24,40,.10)}
+  .ring{--p:0;width:46px;height:46px;border-radius:50%;
+    background:conic-gradient(var(--accent) calc(var(--p)*1%),#EEF0F5 0);display:grid;place-items:center;flex:none}
+  .ring i{width:34px;height:34px;border-radius:50%;background:#fff;display:grid;place-items:center;
+    font-size:11px;font-weight:700;font-style:normal;color:var(--accent)}
+  /* chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .chip{font-size:13px;padding:6px 13px;border-radius:999px;border:1px solid var(--line);
+    background:var(--card);color:var(--muted);font-weight:600}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  /* inputs */
+  .inp{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14.5px;background:#fff;color:var(--ink)}
+  .inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  textarea.inp{min-height:74px;resize:vertical}
+  .btn{padding:11px 16px;border-radius:10px;font-weight:600;font-size:14px}
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .btn.ghost{background:var(--bg);color:var(--ink)}
+  .btn.danger{background:#FEE2E2;color:#B91C1C}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  /* modal */
+  .ov{position:fixed;inset:0;background:rgba(17,20,28,.5);display:grid;place-items:center;padding:18px;z-index:50}
+  .modal{background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:88vh;overflow:auto;padding:22px}
+  .modal h3{margin:0 0 16px;font-size:18px}
+  .lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:14px 0 6px;display:block}
+  /* centered screens */
+  .center{min-height:100vh;display:grid;place-items:center;padding:20px}
+  .auth{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+    padding:30px;width:100%;max-width:400px}
+  .auth h2{margin:0 0 4px;font-size:22px}
+  .auth p.s{margin:0 0 22px;color:var(--muted);font-size:14px}
+  .err{color:var(--red);font-size:13px;margin-top:10px}
+  .ok{color:var(--green);font-size:13px;margin-top:10px}
+  .hamb{display:none}
+  .empty{color:var(--muted);font-size:14px;padding:18px 0}
+  @media(max-width:760px){
+    .side{position:fixed;z-index:40;transform:translateX(-100%);transition:.2s;box-shadow:0 0 40px rgba(0,0,0,.2)}
+    .side.open{transform:none}
+    .main{padding:18px 16px 80px}
+    .hamb{display:flex;position:fixed;top:12px;right:12px;z-index:30;background:#fff;border:1px solid var(--line);
+      border-radius:10px;padding:9px 12px;box-shadow:var(--shadow);font-size:16px}
+    .goalgrid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ============================================================ CONFIG */
+// Optional: hard-code these to skip the setup screen. Otherwise the app
+// asks for them on first run and remembers them in this browser.
+const HARDCODED_URL = "";
+const HARDCODED_ANON = "";
+
+const CFG_KEY = "fkplan.cfg.v1";
+function getConfig(){
+  if (HARDCODED_URL && HARDCODED_ANON) return { url:HARDCODED_URL, anon:HARDCODED_ANON };
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)) || null; } catch(e){ return null; }
+}
+function setConfig(c){ localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+
+/* ============================================================ SEED (start fresh) */
+const SEED_PLAN = {
+  meta: { version: 1, updatedAt: new Date().toISOString(), updatedBy: "app" },
+  areas: [
+    { id:"MIRROR", name:"MIRROR",            emoji:"✦", color:"#7C3AED" },
+    { id:"FAMILY", name:"Family & Purpose",  emoji:"🏡", color:"#059669" },
+    { id:"KIDS",   name:"Kids & Personal",   emoji:"❤️", color:"#DC2626" },
+    { id:"BRAND",  name:"Personal Branding", emoji:"⭐", color:"#2563EB" },
+    { id:"SLP",    name:"SLP",               emoji:"🌿", color:"#16A34A" },
+    { id:"OTHER",  name:"Other",             emoji:"📋", color:"#6B7280" },
+  ],
+  goals: [
+    { id:"g-mirror", areaId:"MIRROR", title:"Launch MIRROR Self Mastery Programme",
+      description:"", deadline:"", status:"active",
+      milestones:[ { id:"ms-1", title:"First milestone", deadline:"", tasks:[] } ] },
+    { id:"g-brand", areaId:"BRAND", title:"Personal Branding & Opportunities",
+      description:"", deadline:"", status:"active",
+      milestones:[ { id:"ms-2", title:"First milestone", deadline:"", tasks:[] } ] },
+  ],
+  inbox: [],
+  insights: { generatedAt:"", todayFocus:"", topPriorityIds:[],
+    overloadAlert:{active:false,message:""}, suggestedMoves:[], challenge:"" },
+};
+
+/* ============================================================ helpers */
+const uid = (p="id") => p + "-" + Math.random().toString(36).slice(2,8);
+const todayISO = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+const fmt = iso => iso ? new Date(iso+"T00:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "";
+const isOverdue = iso => iso && iso < todayISO();
+const isToday = iso => iso && iso === todayISO();
+const PRI_DUR = { high:90, medium:60, low:30 };
+
+// walk all tasks with their goal+milestone context
+function allTasks(plan){
+  const out=[];
+  (plan.goals||[]).forEach(g => (g.milestones||[]).forEach(m => (m.tasks||[]).forEach(t =>
+    out.push({ task:t, goal:g, ms:m }))));
+  return out;
+}
+function areaOf(plan, areaId){ return (plan.areas||[]).find(a=>a.id===areaId) || {name:"",emoji:"",color:"#999"}; }
+function goalCtx(plan, goal){ const a=areaOf(plan,goal.areaId); return `${a.emoji} ${a.name} → ${goal.title}`; }
+
+// immutable task mutate
+function mapTask(plan, taskId, fn){
+  return { ...plan, goals: plan.goals.map(g => ({ ...g,
+    milestones: g.milestones.map(m => ({ ...m,
+      tasks: m.tasks.map(t => t.id===taskId ? fn(t) : t) })) })) };
+}
+function removeTask(plan, taskId){
+  return { ...plan, goals: plan.goals.map(g => ({ ...g,
+    milestones: g.milestones.map(m => ({ ...m, tasks: m.tasks.filter(t=>t.id!==taskId) })) })) };
+}
+
+/* ============================================================ Supabase client */
+let SB = null;
+const cfg = getConfig();
+if (cfg) SB = supabase.createClient(cfg.url, cfg.anon, { auth:{ persistSession:true, autoRefreshToken:true } });
+
+/* ============================================================ ROOT */
+function App(){
+  const [config, setCfg] = useState(cfg);
+  const [session, setSession] = useState(undefined); // undefined = loading
+
+  useEffect(()=>{
+    if(!SB){ setSession(null); return; }
+    SB.auth.getSession().then(({data})=> setSession(data.session||null));
+    const { data:sub } = SB.auth.onAuthStateChange((_e,s)=> setSession(s));
+    return ()=> sub.subscription.unsubscribe();
+  },[config]);
+
+  if(!config) return <ConfigScreen onDone={(c)=>{ setConfig(c); SB=supabase.createClient(c.url,c.anon,{auth:{persistSession:true,autoRefreshToken:true}}); setCfg(c); }} />;
+  if(session===undefined) return <Splash text="Connecting…" />;
+  if(!session) return <AuthScreen />;
+  return <Planner session={session} />;
+}
+
+function Splash({text}){ return <div className="center"><div style={{color:"var(--muted)"}}>{text}</div></div>; }
+
+/* ============================================================ Config screen */
+function ConfigScreen({onDone}){
+  const [url,setUrl]=useState(""); const [anon,setAnon]=useState(""); const [err,setErr]=useState("");
+  const save=()=>{
+    if(!url.trim()||!anon.trim()){ setErr("Both fields are required."); return; }
+    if(!/^https:\/\/.+\.supabase\.co/.test(url.trim())){ setErr("That doesn't look like a Supabase URL (https://xxxx.supabase.co)."); return; }
+    onDone({ url:url.trim(), anon:anon.trim() });
+  };
+  return <div className="center"><div className="auth">
+    <h2>✦ Connect your planner</h2>
+    <p className="s">One-time setup. Paste these from your Supabase project → Settings → API. They're stored only in this browser.</p>
+    <label className="lbl">Project URL</label>
+    <input className="inp" placeholder="https://xxxx.supabase.co" value={url} onChange={e=>setUrl(e.target.value)} />
+    <label className="lbl">Anon public key</label>
+    <input className="inp" placeholder="eyJhbGci…" value={anon} onChange={e=>setAnon(e.target.value)} />
+    {err && <div className="err">{err}</div>}
+    <div style={{height:18}}/>
+    <button className="btn primary" style={{width:"100%"}} onClick={save}>Continue</button>
+  </div></div>;
+}
+
+/* ============================================================ Auth screen */
+function AuthScreen(){
+  const [mode,setMode]=useState("login");
+  const [email,setEmail]=useState(""); const [pw,setPw]=useState("");
+  const [err,setErr]=useState(""); const [msg,setMsg]=useState(""); const [busy,setBusy]=useState(false);
+  const go=async()=>{
+    setErr(""); setMsg(""); setBusy(true);
+    try{
+      if(mode==="login"){
+        const {error}=await SB.auth.signInWithPassword({email,password:pw});
+        if(error) throw error;
+      }else{
+        const {error}=await SB.auth.signUp({email,password:pw});
+        if(error) throw error;
+        setMsg("Account created. If email confirmation is on, check your inbox, then log in.");
+        setMode("login");
+      }
+    }catch(e){ setErr(e.message||"Something went wrong."); }
+    setBusy(false);
+  };
+  return <div className="center"><div className="auth">
+    <h2>✦ Planning</h2>
+    <p className="s">{mode==="login"?"Welcome back, Franziska.":"Create your account."}</p>
+    <label className="lbl">Email</label>
+    <input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/>
+    <label className="lbl">Password</label>
+    <input className="inp" type="password" value={pw} onChange={e=>setPw(e.target.value)}
+      onKeyDown={e=>e.key==="Enter"&&go()} autoComplete="current-password"/>
+    {err && <div className="err">{err}</div>}
+    {msg && <div className="ok">{msg}</div>}
+    <div style={{height:18}}/>
+    <button className="btn primary" style={{width:"100%"}} disabled={busy} onClick={go}>
+      {busy?"…":(mode==="login"?"Log in":"Sign up")}</button>
+    <div style={{textAlign:"center",marginTop:16}}>
+      <button className="linkbtn" style={{display:"inline"}} onClick={()=>{setMode(mode==="login"?"signup":"login");setErr("");setMsg("");}}>
+        {mode==="login"?"Need an account? Sign up":"Have an account? Log in"}</button>
+    </div>
+  </div></div>;
+}
+
+/* ============================================================ PLANNER (logged in) */
+function Planner({session}){
+  const [plan,setPlan]=useState(null);
+  const [view,setView]=useState("today");
+  const [goalId,setGoalId]=useState(null);
+  const [saveState,setSaveState]=useState("idle"); // idle|saving|saved|error
+  const [sideOpen,setSideOpen]=useState(false);
+  const [modal,setModal]=useState(null); // {type, ...}
+
+  const userId = session.user.id;
+  const applyingRemote = useRef(false);   // skip save when change came from realtime
+  const firstLoad = useRef(true);
+  const saveTimer = useRef(null);
+
+  /* ---- load (or seed) the plan ---- */
+  useEffect(()=>{ (async()=>{
+    const { data, error } = await SB.from("plans").select("data").eq("user_id",userId).maybeSingle();
+    if(error){ console.error(error); }
+    if(data && data.data && data.data.goals){
+      setPlan(data.data);
+    }else{
+      const seed = { ...SEED_PLAN, meta:{...SEED_PLAN.meta, updatedAt:new Date().toISOString()} };
+      await SB.from("plans").upsert({ user_id:userId, data:seed, updated_by:"app" });
+      setPlan(seed);
+    }
+  })(); },[userId]);
+
+  /* ---- realtime: other devices / Claude ---- */
+  useEffect(()=>{
+    const ch = SB.channel("plan-"+userId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"plans",filter:"user_id=eq."+userId},
+        payload=>{
+          const incoming = payload.new && payload.new.data;
+          if(!incoming) return;
+          applyingRemote.current = true;
+          setPlan(incoming);
+          setSaveState("saved");
+        })
+      .subscribe();
+    return ()=> SB.removeChannel(ch);
+  },[userId]);
+
+  /* ---- auto-save: debounced write on every change ---- */
+  useEffect(()=>{
+    if(plan===null) return;
+    if(firstLoad.current){ firstLoad.current=false; return; }
+    if(applyingRemote.current){ applyingRemote.current=false; return; }
+    setSaveState("saving");
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async()=>{
+      const toSave = { ...plan, meta:{ ...(plan.meta||{}), updatedAt:new Date().toISOString(), updatedBy:"app" } };
+      const { error } = await SB.from("plans").upsert({ user_id:userId, data:toSave, updated_by:"app" });
+      setSaveState(error ? "error" : "saved");
+      if(error) console.error("save failed", error);
+    }, 600);
+    return ()=> clearTimeout(saveTimer.current);
+  },[plan,userId]);
+
+  /* flush pending save before unload */
+  useEffect(()=>{
+    const h=()=>{ if(saveState==="saving"){ /* best-effort */ } };
+    window.addEventListener("beforeunload",h); return ()=>window.removeEventListener("beforeunload",h);
+  },[saveState]);
+
+  const mutate = useCallback(fn => setPlan(p => fn(p)), []);
+
+  /* ---- task operations ---- */
+  const toggleTask = id => mutate(p=>mapTask(p,id,t=>({...t,done:!t.done})));
+  const toggleSub = (id,sid) => mutate(p=>mapTask(p,id,t=>({...t,subtasks:(t.subtasks||[]).map(s=>s.id===sid?{...s,done:!s.done}:s)})));
+  const inlinePriority = (id,pri) => mutate(p=>mapTask(p,id,t=>({...t,priority:pri})));
+  const inlineDeadline = (id,dl) => mutate(p=>mapTask(p,id,t=>({...t,deadline:dl})));
+  const deferTask = (id,to) => mutate(p=>mapTask(p,id,t=>({...t,deadline:to})));
+  const deleteTask = id => mutate(p=>removeTask(p,id));
+  const saveTaskEdit = (updated, newGoalId, newMsId) => mutate(p=>{
+    let np = removeTask(p, updated.id);
+    np = { ...np, goals: np.goals.map(g => g.id!==newGoalId ? g : ({ ...g,
+      milestones: g.milestones.map(m => m.id!==newMsId ? m : ({ ...m, tasks:[...m.tasks, updated] })) })) };
+    return np;
+  });
+  const addTask = (task, gId, msId) => mutate(p=>({ ...p, goals:p.goals.map(g=>g.id!==gId?g:({...g,
+    milestones:g.milestones.map(m=>m.id!==msId?m:({...m,tasks:[...m.tasks,task]}))})) }));
+
+  /* ---- goal / area / inbox ops ---- */
+  const saveGoal = (g,isNew) => mutate(p=> isNew
+    ? ({...p, goals:[...p.goals, g]})
+    : ({...p, goals:p.goals.map(x=>x.id===g.id?{...x,...g}:x)}));
+  const deleteGoal = id => mutate(p=>({...p, goals:p.goals.filter(g=>g.id!==id)}));
+  const addInbox = text => mutate(p=>({...p, inbox:[{id:uid("in"),text,createdAt:new Date().toISOString()},...(p.inbox||[])]}));
+  const delInbox = id => mutate(p=>({...p, inbox:(p.inbox||[]).filter(i=>i.id!==id)}));
+  const saveAreas = areas => mutate(p=>({...p, areas}));
+
+  if(plan===null) return <Splash text="Loading your plan…" />;
+
+  const goal = goalId ? plan.goals.find(g=>g.id===goalId) : null;
+  const nav=(v)=>{ setView(v); setGoalId(null); setSideOpen(false); };
+
+  return <div className="wrap">
+    <button className="hamb" onClick={()=>setSideOpen(o=>!o)}>☰</button>
+    <aside className={"side"+(sideOpen?" open":"")}>
+      <div className="brand">✦ Planning</div>
+      {[["today","📅","Today"],["overview","🗂","Overview"],["goals","🎯","Goals"],
+        ["inbox","📥","Inbox"],["areas","⚙️","Areas"]].map(([v,i,l])=>
+        <button key={v} className={"nav"+(view===v?" active":"")} onClick={()=>nav(v)}>
+          <span className="ico">{i}</span>{l}</button>)}
+      <div className="side-foot">
+        <div className="saveind">
+          <span className={"dot"+(saveState==="saving"?" saving":saveState==="error"?" err":"")}/>
+          {saveState==="saving"?"Saving…":saveState==="error"?"Save failed — retrying":"All changes saved"}
+        </div>
+        <button className="linkbtn" onClick={()=>SB.auth.signOut()}>Log out · {session.user.email}</button>
+      </div>
+    </aside>
+
+    <main className="main">
+      {goal ? <GoalDetail plan={plan} goal={goal} onBack={()=>setGoalId(null)}
+                 onToggle={toggleTask} onToggleSub={toggleSub} onEdit={t=>setModal({type:"edit",task:t})}
+                 onEditGoal={()=>setModal({type:"goal",goal})} onAddTask={(msId)=>setModal({type:"add",goalId:goal.id,msId})}/>
+       : view==="today" ? <TodayView plan={plan} onToggle={toggleTask} onToggleSub={toggleSub}
+                 onEdit={t=>setModal({type:"edit",task:t})} onDefer={deferTask} onGoal={id=>setGoalId(id)}/>
+       : view==="overview" ? <OverviewView plan={plan} onToggle={toggleTask} onToggleSub={toggleSub}
+                 onEdit={t=>setModal({type:"edit",task:t})} onPri={inlinePriority} onDl={inlineDeadline}
+                 onAdd={()=>setModal({type:"add"})}/>
+       : view==="goals" ? <GoalsView plan={plan} onSelect={id=>setGoalId(id)} onNew={()=>setModal({type:"goal"})}/>
+       : view==="inbox" ? <InboxView plan={plan} onAdd={addInbox} onDelete={delInbox} onMove={(text)=>setModal({type:"add",prefill:text})}/>
+       : <AreasView plan={plan} onSave={saveAreas}/>}
+    </main>
+
+    {modal && modal.type==="add" &&
+      <AddTaskModal plan={plan} prefill={modal.prefill} goalId={modal.goalId} msId={modal.msId}
+        onClose={()=>setModal(null)} onAdd={(t,g,m)=>{addTask(t,g,m); setModal(null);}}/>}
+    {modal && modal.type==="edit" &&
+      <EditTaskModal plan={plan} task={modal.task} onClose={()=>setModal(null)}
+        onSave={(u,g,m)=>{saveTaskEdit(u,g,m); setModal(null);}}
+        onDelete={()=>{deleteTask(modal.task.id); setModal(null);}}/>}
+    {modal && modal.type==="goal" &&
+      <GoalModal plan={plan} goal={modal.goal} onClose={()=>setModal(null)}
+        onSave={(g,isNew)=>{saveGoal(g,isNew); setModal(null);}}
+        onDelete={()=>{deleteGoal(modal.goal.id); setModal(null); setGoalId(null);}}/>}
+  </div>;
+}
+
+/* ============================================================ TaskItem */
+function TaskItem({plan,task,goal,onToggle,onToggleSub,onEdit,onDefer,showCtx,inline,onPri,onDl}){
+  const [open,setOpen]=useState(false);
+  const subs=task.subtasks||[];
+  const doneSubs=subs.filter(s=>s.done).length;
+  return <div className="task">
+    <input type="checkbox" className="chk" checked={!!task.done} onChange={()=>onToggle(task.id)}/>
+    <div className="t-body">
+      <div className={"t-title"+(task.done?" done":"")} onClick={()=>subs.length&&setOpen(o=>!o)}
+           style={{cursor:subs.length?"pointer":"default"}}>{task.title}</div>
+      <div className="t-meta">
+        {showCtx && goal && <span className="pill ctx">{goalCtx(plan,goal)}</span>}
+        {task.priority && (inline
+          ? <select className="pill" value={task.priority} onChange={e=>onPri(task.id,e.target.value)}
+              style={{border:"none"}}>
+              <option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select>
+          : <span className={"pill "+task.priority}>{task.priority}</span>)}
+        {inline
+          ? <input type="date" className="pill" value={task.deadline||""} onChange={e=>onDl(task.id,e.target.value)}/>
+          : task.deadline && <span className={"pill "+(isOverdue(task.deadline)?"over":isToday(task.deadline)?"due":"ctx")}>
+              {isOverdue(task.deadline)?"⚠ ":""}{fmt(task.deadline)}</span>}
+        {subs.length>0 && <span className="pill ctx" onClick={()=>setOpen(o=>!o)} style={{cursor:"pointer"}}>☑ {doneSubs}/{subs.length}</span>}
+      </div>
+      {open && subs.length>0 && <div className="subs">
+        {subs.map(s=><label key={s.id} className="sub">
+          <input type="checkbox" className="chk" checked={!!s.done} onChange={()=>onToggleSub(task.id,s.id)}/>
+          <span style={{textDecoration:s.done?"line-through":"none"}}>{s.title}</span></label>)}
+      </div>}
+    </div>
+    <div className="t-actions">
+      {onDefer && isOverdue(task.deadline) &&
+        <button className="icobtn" onClick={()=>onDefer(task.id,todayISO())} title="Move to today">→ today</button>}
+      <button className="icobtn" onClick={()=>onEdit(task)}>✎</button>
+    </div>
+  </div>;
+}
+
+/* ============================================================ Today */
+function TodayView({plan,onToggle,onToggleSub,onEdit,onDefer,onGoal}){
+  const ins=plan.insights||{};
+  const tasks=allTasks(plan).filter(x=>!x.task.done);
+  const overdue=tasks.filter(x=>isOverdue(x.task.deadline));
+  const today=tasks.filter(x=>isToday(x.task.deadline));
+  const topIds=ins.topPriorityIds||[];
+  const top=tasks.filter(x=>topIds.includes(x.task.id));
+  const moves=(ins.suggestedMoves||[]);
+  const freshTop = top.length? top : [...overdue,...today].slice(0,3);
+  return <div>
+    <h1 className="page">Today</h1>
+    <p className="sub">{new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</p>
+
+    {ins.todayFocus && <div className="card briefing">
+      <h2>Today's focus</h2><p>{ins.todayFocus}</p>
+      {ins.challenge && <p style={{marginTop:10,color:"var(--muted)",fontSize:14}}>💪 {ins.challenge}</p>}
+    </div>}
+
+    {ins.overloadAlert && ins.overloadAlert.active && <div className="card alert">⚠️ {ins.overloadAlert.message}</div>}
+
+    {moves.length>0 && <div className="card">
+      <div className="section-h" style={{margin:"0 0 8px"}}><h3>Suggested moves</h3></div>
+      {moves.map((m,i)=>{ const t=allTasks(plan).find(x=>x.task.id===m.taskId); if(!t) return null;
+        return <div key={i} className="task"><div className="t-body">
+          <div className="t-title">{t.task.title}</div>
+          <div className="t-meta"><span className="pill ctx">{m.reason}</span></div></div>
+          <button className="btn ghost" onClick={()=>onDefer(m.taskId,m.toDate)}>Defer → {fmt(m.toDate)}</button>
+        </div>; })}
+    </div>}
+
+    <div className="section-h"><h3>Top priorities</h3></div>
+    <div className="card">
+      {freshTop.length? freshTop.map(x=><TaskItem key={x.task.id} plan={plan} task={x.task} goal={x.goal}
+        onToggle={onToggle} onToggleSub={onToggleSub} onEdit={onEdit} onDefer={onDefer} showCtx/>)
+        : <div className="empty">Nothing flagged yet. Ask Claude for today's priorities, or add a task.</div>}
+    </div>
+
+    {overdue.length>0 && <>
+      <div className="section-h"><h3>Overdue · {overdue.length}</h3></div>
+      <div className="card">{overdue.map(x=><TaskItem key={x.task.id} plan={plan} task={x.task} goal={x.goal}
+        onToggle={onToggle} onToggleSub={onToggleSub} onEdit={onEdit} onDefer={onDefer} showCtx/>)}</div>
+    </>}
+  </div>;
+}
+
+/* ============================================================ Overview */
+function OverviewView({plan,onToggle,onToggleSub,onEdit,onPri,onDl,onAdd}){
+  const [filter,setFilter]=useState("ALL");
+  const tasks=allTasks(plan).filter(x=>!x.task.done)
+    .filter(x=>filter==="ALL"||x.goal.areaId===filter)
+    .sort((a,b)=>(a.task.deadline||"9999").localeCompare(b.task.deadline||"9999"));
+  return <div>
+    <div className="section-h" style={{margin:"0 0 14px"}}>
+      <h1 className="page">Overview</h1>
+      <button className="btn primary" onClick={onAdd}>+ Task</button>
+    </div>
+    <div className="chips">
+      <button className={"chip"+(filter==="ALL"?" on":"")} onClick={()=>setFilter("ALL")}>All</button>
+      {plan.areas.map(a=><button key={a.id} className={"chip"+(filter===a.id?" on":"")}
+        onClick={()=>setFilter(a.id)}>{a.emoji} {a.name}</button>)}
+    </div>
+    <div className="card">
+      {tasks.length? tasks.map(x=><TaskItem key={x.task.id} plan={plan} task={x.task} goal={x.goal}
+        onToggle={onToggle} onToggleSub={onToggleSub} onEdit={onEdit} showCtx inline onPri={onPri} onDl={onDl}/>)
+        : <div className="empty">No open tasks here. 🎉</div>}
+    </div>
+  </div>;
+}
+
+/* ============================================================ Goals */
+function GoalsView({plan,onSelect,onNew}){
+  const [filter,setFilter]=useState("ALL");
+  const goals=plan.goals.filter(g=>filter==="ALL"||g.areaId===filter);
+  const prog=g=>{ const ts=g.milestones.flatMap(m=>m.tasks); if(!ts.length) return 0;
+    return Math.round(ts.filter(t=>t.done).length/ts.length*100); };
+  return <div>
+    <div className="section-h" style={{margin:"0 0 14px"}}>
+      <h1 className="page">Goals</h1>
+      <button className="btn primary" onClick={onNew}>+ New goal</button>
+    </div>
+    <div className="chips">
+      <button className={"chip"+(filter==="ALL"?" on":"")} onClick={()=>setFilter("ALL")}>All</button>
+      {plan.areas.map(a=><button key={a.id} className={"chip"+(filter===a.id?" on":"")}
+        onClick={()=>setFilter(a.id)}>{a.emoji} {a.name}</button>)}
+    </div>
+    <div className="goalgrid">
+      {goals.map(g=>{ const a=areaOf(plan,g.areaId); const p=prog(g);
+        const open=g.milestones.flatMap(m=>m.tasks).filter(t=>!t.done).length;
+        return <div key={g.id} className="goalcard" onClick={()=>onSelect(g.id)}>
+          <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
+            <div className="ring" style={{"--p":p}}><i>{p}%</i></div>
+            <div><div style={{fontSize:12,color:a.color,fontWeight:700}}>{a.emoji} {a.name}</div>
+              <div style={{fontWeight:700,fontSize:15,lineHeight:1.25,marginTop:2}}>{g.title}</div></div>
+          </div>
+          <div style={{fontSize:13,color:"var(--muted)"}}>{open} open{g.deadline?` · due ${fmt(g.deadline)}`:""}</div>
+        </div>; })}
+      {goals.length===0 && <div className="empty">No goals yet — create one to get started.</div>}
+    </div>
+  </div>;
+}
+
+/* ============================================================ Goal detail */
+function GoalDetail({plan,goal,onBack,onToggle,onToggleSub,onEdit,onEditGoal,onAddTask}){
+  const a=areaOf(plan,goal.areaId);
+  return <div>
+    <button className="linkbtn" onClick={onBack} style={{marginBottom:10}}>← Goals</button>
+    <div className="section-h" style={{margin:"0 0 4px"}}>
+      <h1 className="page">{goal.title}</h1>
+      <button className="btn ghost" onClick={onEditGoal}>Edit</button>
+    </div>
+    <p className="sub">{a.emoji} {a.name}{goal.deadline?` · due ${fmt(goal.deadline)}`:""}</p>
+    {goal.description && <div className="card" style={{color:"var(--muted)",fontSize:14}}>{goal.description}</div>}
+    {goal.milestones.map(m=>{
+      const done=m.tasks.filter(t=>t.done).length;
+      return <div key={m.id} className="card">
+        <div className="section-h" style={{margin:"0 0 6px"}}>
+          <h3>{m.title} · {done}/{m.tasks.length}{m.deadline?` · ${fmt(m.deadline)}`:""}</h3>
+          <button className="icobtn" onClick={()=>onAddTask(m.id)}>+ task</button>
+        </div>
+        {m.tasks.length? m.tasks.map(t=><TaskItem key={t.id} plan={plan} task={t} goal={goal}
+          onToggle={onToggle} onToggleSub={onToggleSub} onEdit={onEdit}/>)
+          : <div className="empty">No tasks in this milestone yet.</div>}
+      </div>; })}
+  </div>;
+}
+
+/* ============================================================ Inbox */
+function InboxView({plan,onAdd,onDelete,onMove}){
+  const [text,setText]=useState("");
+  const rec=useRef(null);
+  const voice=()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert("Voice input isn't supported in this browser."); return; }
+    const r=new SR(); r.lang="en-GB"; r.onresult=e=>setText(t=>(t?t+" ":"")+e.results[0][0].transcript); r.start();
+  };
+  const add=()=>{ if(text.trim()){ onAdd(text.trim()); setText(""); } };
+  return <div>
+    <h1 className="page">Inbox</h1>
+    <p className="sub">Brain-dump here. Sort into goals later, or ask Claude to triage.</p>
+    <div className="card">
+      <div className="row" style={{alignItems:"stretch"}}>
+        <textarea className="inp" placeholder="Type or dictate a thought…" value={text}
+          onChange={e=>setText(e.target.value)} style={{flex:4}}/>
+      </div>
+      <div className="row" style={{marginTop:10}}>
+        <button className="btn ghost" onClick={voice}>🎤 Dictate</button>
+        <button className="btn primary" onClick={add}>Add to inbox</button>
+      </div>
+    </div>
+    {(plan.inbox||[]).map(i=><div key={i.id} className="card" style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+      <span style={{fontSize:14}}>{i.text}</span>
+      <span style={{display:"flex",gap:6,flex:"none"}}>
+        <button className="icobtn" onClick={()=>onMove(i.text)}>→ goal</button>
+        <button className="icobtn" onClick={()=>onDelete(i.id)}>🗑</button>
+      </span></div>)}
+    {(plan.inbox||[]).length===0 && <div className="empty">Inbox is clear. ✨</div>}
+  </div>;
+}
+
+/* ============================================================ Areas */
+function AreasView({plan,onSave}){
+  const [areas,setAreas]=useState(plan.areas);
+  useEffect(()=>setAreas(plan.areas),[plan.areas]);
+  const upd=(id,k,v)=>setAreas(as=>as.map(a=>a.id===id?{...a,[k]:v}:a));
+  const add=()=>setAreas(as=>[...as,{id:uid("area").toUpperCase(),name:"New area",emoji:"📌",color:"#6B7280"}]);
+  const del=id=>setAreas(as=>as.filter(a=>a.id!==id));
+  const dirty=JSON.stringify(areas)!==JSON.stringify(plan.areas);
+  return <div>
+    <h1 className="page">Areas</h1>
+    <p className="sub">The life domains your goals live under.</p>
+    {areas.map(a=><div key={a.id} className="card" style={{display:"flex",gap:10,alignItems:"center"}}>
+      <input className="inp" style={{width:54,textAlign:"center",flex:"none"}} value={a.emoji} onChange={e=>upd(a.id,"emoji",e.target.value)}/>
+      <input className="inp" value={a.name} onChange={e=>upd(a.id,"name",e.target.value)}/>
+      <input type="color" value={a.color} onChange={e=>upd(a.id,"color",e.target.value)} style={{width:42,height:42,border:"none",background:"none",flex:"none"}}/>
+      <button className="icobtn" onClick={()=>del(a.id)}>🗑</button>
+    </div>)}
+    <div className="row" style={{marginTop:6}}>
+      <button className="btn ghost" onClick={add}>+ Add area</button>
+      <button className="btn primary" disabled={!dirty} onClick={()=>onSave(areas)} style={{opacity:dirty?1:.5}}>Save areas</button>
+    </div>
+  </div>;
+}
+
+/* ============================================================ Add task modal */
+function AddTaskModal({plan,prefill,goalId,msId,onClose,onAdd}){
+  const [title,setTitle]=useState(prefill||"");
+  const [g,setG]=useState(goalId||plan.goals[0]?.id||"");
+  const goal=plan.goals.find(x=>x.id===g);
+  const [m,setM]=useState(msId||goal?.milestones[0]?.id||"");
+  const [pri,setPri]=useState("medium"); const [dl,setDl]=useState(""); const [notes,setNotes]=useState("");
+  useEffect(()=>{ const gg=plan.goals.find(x=>x.id===g); setM(gg?.milestones[0]?.id||""); },[g]);
+  const submit=()=>{ if(!title.trim()||!g||!m) return;
+    onAdd({id:uid("t"),title:title.trim(),done:false,deadline:dl,priority:pri,notes,recurring:null,
+      gcalEventId:null,scheduledStart:null,scheduledEnd:null,subtasks:[]}, g, m); };
+  return <Modal onClose={onClose} title="Add task">
+    <label className="lbl">Task</label>
+    <textarea className="inp" value={title} onChange={e=>setTitle(e.target.value)} autoFocus/>
+    <label className="lbl">Goal</label>
+    <select className="inp" value={g} onChange={e=>setG(e.target.value)}>
+      {plan.goals.map(x=><option key={x.id} value={x.id}>{areaOf(plan,x.areaId).emoji} {x.title}</option>)}</select>
+    <label className="lbl">Milestone</label>
+    <select className="inp" value={m} onChange={e=>setM(e.target.value)}>
+      {(goal?.milestones||[]).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select>
+    <div className="row">
+      <div><label className="lbl">Priority</label>
+        <select className="inp" value={pri} onChange={e=>setPri(e.target.value)}>
+          <option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select></div>
+      <div><label className="lbl">Deadline</label>
+        <input type="date" className="inp" value={dl} onChange={e=>setDl(e.target.value)}/></div>
+    </div>
+    <div className="row" style={{marginTop:18}}>
+      <button className="btn ghost" onClick={onClose}>Cancel</button>
+      <button className="btn primary" onClick={submit}>Add task</button>
+    </div>
+  </Modal>;
+}
+
+/* ============================================================ Edit task modal */
+function EditTaskModal({plan,task,onClose,onSave,onDelete}){
+  const loc=allTasks(plan).find(x=>x.task.id===task.id);
+  const [t,setT]=useState({...task,subtasks:task.subtasks||[]});
+  const [g,setG]=useState(loc?.goal.id||plan.goals[0]?.id);
+  const goal=plan.goals.find(x=>x.id===g);
+  const [m,setM]=useState(loc?.ms.id||goal?.milestones[0]?.id);
+  useEffect(()=>{ const gg=plan.goals.find(x=>x.id===g); if(!gg?.milestones.find(x=>x.id===m)) setM(gg?.milestones[0]?.id); },[g]);
+  const upd=(k,v)=>setT(o=>({...o,[k]:v}));
+  const addSub=()=>setT(o=>({...o,subtasks:[...o.subtasks,{id:uid("st"),title:"",done:false}]}));
+  const updSub=(id,v)=>setT(o=>({...o,subtasks:o.subtasks.map(s=>s.id===id?{...s,title:v}:s)}));
+  const delSub=id=>setT(o=>({...o,subtasks:o.subtasks.filter(s=>s.id!==id)}));
+  return <Modal onClose={onClose} title="Edit task">
+    <label className="lbl">Task</label>
+    <textarea className="inp" value={t.title} onChange={e=>upd("title",e.target.value)}/>
+    <div className="row">
+      <div><label className="lbl">Goal</label>
+        <select className="inp" value={g} onChange={e=>setG(e.target.value)}>
+          {plan.goals.map(x=><option key={x.id} value={x.id}>{areaOf(plan,x.areaId).emoji} {x.title}</option>)}</select></div>
+      <div><label className="lbl">Milestone</label>
+        <select className="inp" value={m} onChange={e=>setM(e.target.value)}>
+          {(goal?.milestones||[]).map(x=><option key={x.id} value={x.id}>{x.title}</option>)}</select></div>
+    </div>
+    <div className="row">
+      <div><label className="lbl">Priority</label>
+        <select className="inp" value={t.priority||"medium"} onChange={e=>upd("priority",e.target.value)}>
+          <option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select></div>
+      <div><label className="lbl">Deadline</label>
+        <input type="date" className="inp" value={t.deadline||""} onChange={e=>upd("deadline",e.target.value)}/></div>
+    </div>
+    <label className="lbl">Notes</label>
+    <textarea className="inp" value={t.notes||""} onChange={e=>upd("notes",e.target.value)}/>
+    <label className="lbl">Subtasks</label>
+    {t.subtasks.map(s=><div key={s.id} className="row" style={{marginBottom:6}}>
+      <input className="inp" value={s.title} onChange={e=>updSub(s.id,e.target.value)} style={{flex:5}}/>
+      <button className="icobtn" style={{flex:"none"}} onClick={()=>delSub(s.id)}>🗑</button></div>)}
+    <button className="btn ghost" onClick={addSub} style={{marginTop:4}}>+ Subtask</button>
+    <div className="row" style={{marginTop:18}}>
+      <button className="btn danger" onClick={onDelete}>Delete</button>
+      <button className="btn ghost" onClick={onClose}>Cancel</button>
+      <button className="btn primary" onClick={()=>onSave({...t,subtasks:t.subtasks.filter(s=>s.title.trim())},g,m)}>Save</button>
+    </div>
+  </Modal>;
+}
+
+/* ============================================================ Goal modal */
+function GoalModal({plan,goal,onClose,onSave,onDelete}){
+  const isNew=!goal;
+  const [g,setG]=useState(goal||{id:uid("g"),areaId:plan.areas[0]?.id,title:"",description:"",deadline:"",status:"active",
+    milestones:[{id:uid("ms"),title:"First milestone",deadline:"",tasks:[]}]});
+  const upd=(k,v)=>setG(o=>({...o,[k]:v}));
+  return <Modal onClose={onClose} title={isNew?"New goal":"Edit goal"}>
+    <label className="lbl">Title</label>
+    <input className="inp" value={g.title} onChange={e=>upd("title",e.target.value)} autoFocus/>
+    <div className="row">
+      <div><label className="lbl">Area</label>
+        <select className="inp" value={g.areaId} onChange={e=>upd("areaId",e.target.value)}>
+          {plan.areas.map(a=><option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}</select></div>
+      <div><label className="lbl">Deadline</label>
+        <input type="date" className="inp" value={g.deadline||""} onChange={e=>upd("deadline",e.target.value)}/></div>
+    </div>
+    <label className="lbl">Description</label>
+    <textarea className="inp" value={g.description||""} onChange={e=>upd("description",e.target.value)}/>
+    <div className="row" style={{marginTop:18}}>
+      {!isNew && <button className="btn danger" onClick={onDelete}>Delete</button>}
+      <button className="btn ghost" onClick={onClose}>Cancel</button>
+      <button className="btn primary" onClick={()=>g.title.trim()&&onSave(g,isNew)}>Save</button>
+    </div>
+  </Modal>;
+}
+
+/* ============================================================ Modal shell */
+function Modal({title,children,onClose}){
+  return <div className="ov" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="modal"><h3>{title}</h3>{children}</div></div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
