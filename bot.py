@@ -64,11 +64,17 @@ def first_url(text: str) -> str:
     return m.group(0) if m else text.strip()
 
 
+def _dataset_items(run) -> list:
+    # apify-client >=3 returns a Run object; older versions returned a dict
+    dataset_id = run.default_dataset_id if hasattr(run, "default_dataset_id") else run["defaultDatasetId"]
+    return list(apify.dataset(dataset_id).iterate_items())
+
+
 def scrape_instagram_profile(handle: str) -> dict:
     run = apify.actor("apify/instagram-profile-scraper").call(
         run_input={"usernames": [handle]}
     )
-    items = list(apify.dataset(run["defaultDatasetId"]).iterate_items())
+    items = _dataset_items(run)
     return items[0] if items else {}
 
 
@@ -76,7 +82,7 @@ def scrape_instagram_post(url: str) -> dict:
     run = apify.actor("apify/instagram-scraper").call(
         run_input={"directUrls": [url], "resultsType": "posts", "resultsLimit": 1}
     )
-    items = list(apify.dataset(run["defaultDatasetId"]).iterate_items())
+    items = _dataset_items(run)
     return items[0] if items else {}
 
 
@@ -84,7 +90,7 @@ def scrape_tiktok_profile(handle: str) -> dict:
     run = apify.actor("clockworks/free-tiktok-scraper").call(
         run_input={"profiles": [handle], "resultsPerPage": 20}
     )
-    items = list(apify.dataset(run["defaultDatasetId"]).iterate_items())
+    items = _dataset_items(run)
     return items[0] if items else {}
 
 
@@ -92,7 +98,7 @@ def scrape_tiktok_post(url: str) -> dict:
     run = apify.actor("clockworks/free-tiktok-scraper").call(
         run_input={"postURLs": [url], "resultsPerPage": 1}
     )
-    items = list(apify.dataset(run["defaultDatasetId"]).iterate_items())
+    items = _dataset_items(run)
     return items[0] if items else {}
 
 
