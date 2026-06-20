@@ -3,7 +3,7 @@ import re
 import logging
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from apify_client import ApifyClient
 import anthropic
 
@@ -21,14 +21,14 @@ APIFY_TOKEN = os.environ["APIFY_TOKEN"]
 apify = ApifyClient(APIFY_TOKEN)
 claude = anthropic.Anthropic()
 
-TRIGGER = re.compile(r"analyze\s+this\s+(.+)", re.IGNORECASE)
+# Triggers on "analyze ..." with or without the word "this"
+TRIGGER = re.compile(r"analyz\w*\s+(?:this\s+)?(.+)", re.IGNORECASE | re.DOTALL)
 
-ACTORS = {
-    "instagram": "apify/instagram-profile-scraper",
-    "tiktok": "clockworks/free-tiktok-scraper",
-    "youtube": "streamers/youtube-scraper",
-    "twitter": "quacker/twitter-scraper",
-}
+# URL of a specific post/reel/video (not a profile)
+POST_URL = re.compile(
+    r"(instagram\.com/(?:p|reel|reels|tv)/|tiktok\.com/@[^/]+/video/|youtube\.com/watch|youtu\.be/)",
+    re.IGNORECASE,
+)
 
 
 def detect_platform(text: str) -> str:
@@ -42,8 +42,15 @@ def detect_platform(text: str) -> str:
     return "instagram"
 
 
+def is_post_url(text: str) -> bool:
+    return bool(POST_URL.search(text))
+
+
 def extract_handle(text: str) -> str:
-    url_match = re.search(r"(?:instagram|tiktok|twitter|x|youtube)\.com/(?:@)?([^/?&\s]+)", text)
+    # Profile URL like instagram.com/username
+    url_match = re.search(
+        r"(?:instagram|tiktok|twitter|x|youtube)\.com/(?:@)?([^/?&\s]+)", text
+    )
     if url_match:
         return url_match.group(1).lstrip("@")
     handle_match = re.search(r"@([\w.]+)", text)
@@ -52,15 +59,28 @@ def extract_handle(text: str) -> str:
     return text.strip().lstrip("@")
 
 
-def scrape_instagram(handle: str) -> dict:
+def first_url(text: str) -> str:
+    m = re.search(r"https?://\S+", text)
+    return m.group(0) if m else text.strip()
+
+
+def scrape_instagram_profile(handle: str) -> dict:
     run = apify.actor("apify/instagram-profile-scraper").call(
-        run_input={"usernames": [handle], "resultsLimit": 20}
+        run_input={"usernames": [handle]}
     )
     items = list(apify.dataset(run["defaultDatasetId"]).iterate_items())
     return items[0] if items else {}
 
 
-def scrape_tiktok(handle: str) -> dict:
+def scrape_instagram_post(url: str) -> dict:
+    run = apify.actor("apify/instagram-scraper").call(
+        run_input={"directUrls": [url], "resultsType": "posts", "resultsLimit": 1}
+    )
+    items = list(apify.dataset(run["defaultDatasetId"]).iterate_items())
+    return items[0] if items else {}
+
+
+def scrape_tiktok_profile(handle: str) -> dict:
     run = apify.actor("clockworks/free-tiktok-scraper").call(
         run_input={"profiles": [handle], "resultsPerPage": 20}
     )
@@ -68,17 +88,33 @@ def scrape_tiktok(handle: str) -> dict:
     return items[0] if items else {}
 
 
-def analyze_with_claude(platform: str, handle: str, data: dict) -> str:
-    prompt = f"""You are a social media analyst. Analyze this {platform} profile data for @{handle} and provide:
-1. Key stats (followers, engagement rate, posting frequency)
+def scrape_tiktok_post(url: str) -> dict:
+    run = apify.actor("clockworks/free-tiktok-scraper").call(
+        run_input={"postURLs": [url], "resultsPerPage": 1}
+    )
+    items = list(apify.dataset(run["defaultDatasetId"]).iterate_items())
+    return items[0] if items else {}
+
+
+def analyze_with_claude(platform: str, label: str, kind: str, data: dict) -> str:
+    if kind == "post":
+        focus = """1. What the post/reel is about
+2. Engagement (likes, comments, views) and how it compares to typical performance
+3. Why it works (hook, format, topic, timing)
+4. 2-3 actionable takeaways to replicate this success"""
+    else:
+        focus = """1. Key stats (followers, engagement rate, posting frequency)
 2. Content themes and strengths
 3. Top-performing content types
-4. 2-3 actionable insights
+4. 2-3 actionable insights"""
+
+    prompt = f"""You are a social media analyst. Analyze this {platform} {kind} ({label}) and provide:
+{focus}
 
 Keep it concise and punchy — this goes in a Telegram message.
 
 Raw data:
-{str(data)[:4000]}"""
+{str(data)[:5000]}"""
 
     message = claude.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -88,43 +124,63 @@ Raw data:
     return message.content[0].text
 
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(
+        "👋 Hi! I analyze social media profiles and posts.\n\n"
+        "Just send me:\n"
+        "• `Analyze @username` — to analyze a profile\n"
+        "• `Analyze <link>` — to analyze a specific post or reel\n\n"
+        "Works with Instagram and TikTok.",
+        parse_mode="Markdown",
+    )
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text or ""
     match = TRIGGER.search(text)
     if not match:
         return
 
-    profile_input = match.group(1).strip()
-    platform = detect_platform(profile_input)
-    handle = extract_handle(profile_input)
+    target = match.group(1).strip()
+    platform = detect_platform(target)
+    post = is_post_url(target)
+    kind = "post" if post else "profile"
 
-    await update.message.reply_text(f"Analyzing {platform} profile @{handle}... give me a sec ⏳")
+    label = first_url(target) if post else "@" + extract_handle(target)
+    await update.message.reply_text(f"Analyzing {platform} {kind} ({label})... give me a sec ⏳")
 
     try:
         if platform == "instagram":
-            data = scrape_instagram(handle)
+            data = scrape_instagram_post(first_url(target)) if post else scrape_instagram_profile(extract_handle(target))
         elif platform == "tiktok":
-            data = scrape_tiktok(handle)
+            data = scrape_tiktok_post(first_url(target)) if post else scrape_tiktok_profile(extract_handle(target))
         else:
             await update.message.reply_text(
-                f"Only Instagram and TikTok supported right now. More platforms coming soon!"
+                "Only Instagram and TikTok are supported right now. More platforms coming soon!"
             )
             return
 
         if not data:
-            await update.message.reply_text(f"Couldn't find profile @{handle}. Check the handle and try again.")
+            await update.message.reply_text(
+                f"Couldn't find that {kind}. Double-check the link/handle and try again."
+            )
             return
 
-        analysis = analyze_with_claude(platform, handle, data)
-        await update.message.reply_text(f"📊 *@{handle} on {platform.capitalize()}*\n\n{analysis}", parse_mode="Markdown")
+        analysis = analyze_with_claude(platform, label, kind, data)
+        await update.message.reply_text(
+            f"📊 *{label} on {platform.capitalize()}*\n\n{analysis}", parse_mode="Markdown"
+        )
 
     except Exception as e:
-        logger.error(f"Error analyzing @{handle}: {e}")
-        await update.message.reply_text(f"Something went wrong analyzing @{handle}. Try again in a moment.")
+        logger.error(f"Error analyzing {label}: {e}")
+        await update.message.reply_text(
+            f"Something went wrong analyzing {label}. Try again in a moment."
+        )
 
 
 def main() -> None:
     app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     logger.info("Bot is running...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
